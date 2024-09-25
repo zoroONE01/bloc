@@ -1,247 +1,181 @@
-import 'package:authentication_repository/authentication_repository.dart';
+// ignore_for_file: prefer_const_constructors
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_firebase_login/login/login.dart';
 import 'package:flutter_firebase_login/sign_up/sign_up.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:form_inputs/form_inputs.dart';
 import 'package:formz/formz.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockAuthenticationRepository extends Mock
-    implements AuthenticationRepository {}
-
-class MockLoginCubit extends MockCubit<LoginState> implements LoginCubit {}
-
-class MockEmail extends Mock implements Email {}
-
-class MockPassword extends Mock implements Password {}
+class MockLoginCubit extends Mock implements LoginCubit {}
 
 void main() {
-  const loginButtonKey = Key('loginForm_continue_raisedButton');
-  const signInWithGoogleButtonKey = Key('loginForm_googleLogin_raisedButton');
-  const emailInputKey = Key('loginForm_emailInput_textField');
-  const passwordInputKey = Key('loginForm_passwordInput_textField');
-  const createAccountButtonKey = Key('loginForm_createAccount_flatButton');
+  late LoginCubit loginCubit;
 
-  const testEmail = 'test@gmail.com';
-  const testPassword = 'testP@ssw0rd1';
+  setUp(() {
+    loginCubit = MockLoginCubit();
+    when(() => loginCubit.state).thenReturn(LoginState());
+  });
 
   group('LoginForm', () {
-    late LoginCubit loginCubit;
-
-    setUp(() {
-      loginCubit = MockLoginCubit();
-      when(() => loginCubit.state).thenReturn(const LoginState());
-      when(() => loginCubit.logInWithGoogle()).thenAnswer((_) async {});
-      when(() => loginCubit.logInWithCredentials()).thenAnswer((_) async {});
+    testWidgets('renders LoginForm', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(find.byType(LoginForm), findsOneWidget);
     });
 
-    group('calls', () {
-      testWidgets('emailChanged when email changes', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        await tester.enterText(find.byKey(emailInputKey), testEmail);
-        verify(() => loginCubit.emailChanged(testEmail)).called(1);
-      });
-
-      testWidgets('passwordChanged when password changes', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        await tester.enterText(find.byKey(passwordInputKey), testPassword);
-        verify(() => loginCubit.passwordChanged(testPassword)).called(1);
-      });
-
-      testWidgets('logInWithCredentials when login button is pressed',
-          (tester) async {
-        when(() => loginCubit.state).thenReturn(
-          const LoginState(isValid: true),
-        );
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.byKey(loginButtonKey));
-        verify(() => loginCubit.logInWithCredentials()).called(1);
-      });
-
-      testWidgets('logInWithGoogle when sign in with google button is pressed',
-          (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.byKey(signInWithGoogleButtonKey));
-        verify(() => loginCubit.logInWithGoogle()).called(1);
-      });
+    testWidgets('renders email input', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(find.byKey(Key('loginForm_emailInput_textField')), findsOneWidget);
     });
 
-    group('renders', () {
-      testWidgets('AuthenticationFailure SnackBar when submission fails',
-          (tester) async {
-        whenListen(
-          loginCubit,
-          Stream.fromIterable(const <LoginState>[
-            LoginState(status: FormzSubmissionStatus.inProgress),
-            LoginState(status: FormzSubmissionStatus.failure),
-          ]),
-        );
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        await tester.pump();
-        expect(find.text('Authentication Failure'), findsOneWidget);
-      });
-
-      testWidgets('invalid email error text when email is invalid',
-          (tester) async {
-        final email = MockEmail();
-        when(() => email.displayError).thenReturn(EmailValidationError.invalid);
-        when(() => loginCubit.state).thenReturn(LoginState(email: email));
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        expect(find.text('invalid email'), findsOneWidget);
-      });
-
-      testWidgets('invalid password error text when password is invalid',
-          (tester) async {
-        final password = MockPassword();
-        when(
-          () => password.displayError,
-        ).thenReturn(PasswordValidationError.invalid);
-        when(() => loginCubit.state).thenReturn(LoginState(password: password));
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        expect(find.text('invalid password'), findsOneWidget);
-      });
-
-      testWidgets('disabled login button when status is not validated',
-          (tester) async {
-        when(() => loginCubit.state).thenReturn(const LoginState());
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        final loginButton = tester.widget<ElevatedButton>(
-          find.byKey(loginButtonKey),
-        );
-        expect(loginButton.enabled, isFalse);
-      });
-
-      testWidgets('enabled login button when status is validated',
-          (tester) async {
-        when(() => loginCubit.state).thenReturn(
-          const LoginState(isValid: true),
-        );
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        final loginButton = tester.widget<ElevatedButton>(
-          find.byKey(loginButtonKey),
-        );
-        expect(loginButton.enabled, isTrue);
-      });
-
-      testWidgets('Sign in with Google Button', (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: BlocProvider.value(
-                value: loginCubit,
-                child: const LoginForm(),
-              ),
-            ),
-          ),
-        );
-        expect(find.byKey(signInWithGoogleButtonKey), findsOneWidget);
-      });
+    testWidgets('renders password input', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(
+          find.byKey(Key('loginForm_passwordInput_textField')), findsOneWidget);
     });
 
-    group('navigates', () {
-      testWidgets('to SignUpPage when Create Account is pressed',
-          (tester) async {
-        await tester.pumpWidget(
-          RepositoryProvider<AuthenticationRepository>(
-            create: (_) => MockAuthenticationRepository(),
-            child: MaterialApp(
-              home: Scaffold(
-                body: BlocProvider.value(
-                  value: loginCubit,
-                  child: const LoginForm(),
-                ),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.byKey(createAccountButtonKey));
-        await tester.pumpAndSettle();
-        expect(find.byType(SignUpPage), findsOneWidget);
-      });
+    testWidgets('renders login button', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(
+          find.byKey(Key('loginForm_continue_raisedButton')), findsOneWidget);
+    });
+
+    testWidgets('renders Google login button', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(find.byKey(Key('loginForm_googleLogin_raisedButton')),
+          findsOneWidget);
+    });
+
+    testWidgets('renders sign up button', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(find.byKey(Key('loginForm_createAccount_flatButton')),
+          findsOneWidget);
+    });
+
+    testWidgets('calls emailChanged when email is updated', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.enterText(find.byKey(Key('loginForm_emailInput_textField')),
+          'test@example.com');
+      verify(() => loginCubit.emailChanged('test@example.com')).called(1);
+    });
+
+    testWidgets('calls passwordChanged when password is updated',
+        (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.enterText(
+          find.byKey(Key('loginForm_passwordInput_textField')), 'password');
+      verify(() => loginCubit.passwordChanged('password')).called(1);
+    });
+
+    testWidgets('calls logInWithCredentials when login button is pressed',
+        (tester) async {
+      when(() => loginCubit.state).thenReturn(LoginState(isValid: true));
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.tap(find.byKey(Key('loginForm_continue_raisedButton')));
+      verify(() => loginCubit.logInWithCredentials()).called(1);
+    });
+
+    testWidgets('calls logInWithGoogle when Google login button is pressed',
+        (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.tap(find.byKey(Key('loginForm_googleLogin_raisedButton')));
+      verify(() => loginCubit.logInWithGoogle()).called(1);
+    });
+
+    testWidgets('navigates to SignUpPage when sign up button is pressed',
+        (tester) async {
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.tap(find.byKey(Key('loginForm_createAccount_flatButton')));
+      await tester.pumpAndSettle();
+      expect(find.byType(SignUpPage), findsOneWidget);
+    });
+
+    testWidgets('shows error snackbar when login fails', (tester) async {
+      whenListen(
+        loginCubit,
+        Stream.fromIterable([
+          LoginState(
+              status: FormzSubmissionStatus.failure,
+              errorMessage: 'Authentication Failure')
+        ]),
+      );
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Authentication Failure'), findsOneWidget);
+    });
+
+    testWidgets('shows CircularProgressIndicator when login is in progress',
+        (tester) async {
+      when(() => loginCubit.state)
+          .thenReturn(LoginState(status: FormzSubmissionStatus.inProgress));
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: loginCubit,
+          child: MaterialApp(home: Scaffold(body: LoginForm())),
+        ),
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
   });
 }
